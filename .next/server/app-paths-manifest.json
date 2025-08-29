@@ -1,0 +1,11 @@
+{
+  "/api/auth/login/route": "app/api/auth/login/route.js",
+  "/api/admin/active-users/route": "app/api/admin/active-users/route.js",
+  "/api/admin/users/route": "app/api/admin/users/route.js",
+  "/api/admin/stats/route": "app/api/admin/stats/route.js",
+  "/api/user/career/route": "app/api/user/career/route.js",
+  "/page": "app/page.js",
+  "/auth/login/page": "app/auth/login/page.js",
+  "/admin/dashboard/page": "app/admin/dashboard/page.js",
+  "/user/dashboard/page": "app/user/dashboard/page.js"
+}

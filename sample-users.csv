@@ -1,0 +1,11 @@
+name,email,currentRole,experience,skills
+John Doe,john.doe@example.com,Data Scientist,Mid Level,Python;Machine Learning;SQL;Pandas
+Jane Smith,jane.smith@example.com,Software Engineer,Senior,JavaScript;React;Node.js;TypeScript
+Michael Johnson,michael.j@example.com,Product Manager,Senior,Product Strategy;Agile;Analytics;Leadership
+Sarah Wilson,sarah.wilson@example.com,UI/UX Designer,Mid Level,Figma;Adobe XD;User Research;Prototyping
+David Brown,david.brown@example.com,DevOps Engineer,Senior,AWS;Docker;Kubernetes;CI/CD
+Emily Davis,emily.davis@example.com,Business Analyst,Junior,SQL;Excel;Requirements Analysis;Documentation
+Robert Miller,robert.miller@example.com,Data Scientist,Entry Level,Python;Statistics;Machine Learning;Tableau
+Lisa Garcia,lisa.garcia@example.com,Software Engineer,Junior,Java;Spring Boot;MySQL;Git
+Kevin Rodriguez,kevin.r@example.com,Product Manager,Mid Level,Product Management;Scrum;User Stories;KPIs
+Amanda Martinez,amanda.m@example.com,UI/UX Designer,Senior,Design Systems;User Testing;Wireframing;Accessibility
