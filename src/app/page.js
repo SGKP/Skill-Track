@@ -11,7 +11,7 @@ export default function Home() {
             Career Tracking Platform
           </h1>
           <p className="text-gray-600">
-            Track your career journey with AI-powered guidance
+            Track your career journey with real-time guidance
           </p>
         </div>
         
@@ -39,7 +39,7 @@ export default function Home() {
         </div>
         
         <div className="mt-6 text-center text-sm text-gray-500">
-          <p>Powered by AI • Real-time Communication • Career Growth</p>
+          <p>Real-time Communication • Career Growth</p>
         </div>
       </div>
     </div>

@@ -148,25 +148,29 @@ export default function AdminChat() {
           <h3 className="font-semibold text-gray-900">Active Users</h3>
         </div>
         <div className="overflow-y-auto h-80">
-          {activeUsers.map((user) => (
-            <div
-              key={user.id}
-              onClick={() => setSelectedUser(user)}
-              className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 ${
-                selectedUser?.id === user.id ? 'bg-blue-50 border-blue-200' : ''
-              }`}
-            >
-              <div className="flex items-center space-x-3">
-                <div className={`w-3 h-3 rounded-full ${
-                  user.status === 'online' ? 'bg-green-400' : 'bg-gray-400'
-                }`}></div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{user.name}</p>
-                  <p className="text-xs text-gray-500">{user.currentRole}</p>
+          {activeUsers.map((user, idx) => {
+            // Ensure the key is always unique, even if user.id is duplicated
+            const key = (user.id || user._id ? `${user.id || user._id}` : `user-${idx}`) + `-${idx}`;
+            return (
+              <div
+                key={key}
+                onClick={() => setSelectedUser(user)}
+                className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 ${
+                  selectedUser?.id === user.id ? 'bg-blue-50 border-blue-200' : ''
+                }`}
+              >
+                <div className="flex items-center space-x-3">
+                  <div className={`w-3 h-3 rounded-full ${
+                    user.status === 'online' ? 'bg-green-400' : 'bg-gray-400'
+                  }`}></div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{user.name}</p>
+                    <p className="text-xs text-gray-500">{user.currentRole}</p>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -186,30 +190,30 @@ export default function AdminChat() {
               msg.from === selectedUser.id || 
               msg.to === selectedUser.id
             )
-            .map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${
-                message.fromRole === 'admin' ? 'justify-end' : 'justify-start'
-              }`}
-            >
+            .map((message, idx) => (
               <div
-                className={`max-w-xs px-4 py-2 rounded-lg ${
-                  message.fromRole === 'admin'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-200 text-gray-900'
-                } ${message.isBroadcast ? 'bg-purple-600 text-white' : ''}`}
+                key={message.id || message.timestamp || idx}
+                className={`flex ${
+                  message.fromRole === 'admin' ? 'justify-end' : 'justify-start'
+                }`}
               >
-                {message.isBroadcast && (
-                  <p className="text-xs mb-1">📢 Broadcast</p>
-                )}
-                <p className="text-sm">{message.message}</p>
-                <p className="text-xs mt-1 opacity-75">
-                  {new Date(message.timestamp).toLocaleTimeString()}
-                </p>
+                <div
+                  className={`max-w-xs px-4 py-2 rounded-lg ${
+                    message.fromRole === 'admin'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-200 text-gray-900'
+                  } ${message.isBroadcast ? 'bg-purple-600 text-white' : ''}`}
+                >
+                  {message.isBroadcast && (
+                    <p className="text-xs mb-1">📢 Broadcast</p>
+                  )}
+                  <p className="text-sm">{message.message}</p>
+                  <p className="text-xs mt-1 opacity-75">
+                    {new Date(message.timestamp).toLocaleTimeString()}
+                  </p>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
           {isTyping && (
             <div className="flex justify-start">
               <div className="bg-gray-200 text-gray-900 px-4 py-2 rounded-lg">

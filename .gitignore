@@ -1,3 +1,4 @@
 /.env.local
 /.github
 /README.md
+node_modules

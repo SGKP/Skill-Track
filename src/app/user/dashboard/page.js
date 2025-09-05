@@ -61,7 +61,7 @@ export default function UserDashboard() {
             <h1 className="text-3xl font-bold text-gray-900">
               {activeTab === 'profile' && 'Your Profile'}
               {activeTab === 'career' && 'Career Tracking'}
-              {activeTab === 'chatbot' && 'AI Career Assistant'}
+              {activeTab === 'chatbot' && 'Career Assistant'}
               {activeTab === 'chat' && 'Admin Communication'}
             </h1>
             <p className="text-gray-600 mt-2">

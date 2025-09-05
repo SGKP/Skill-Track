@@ -2,7 +2,7 @@ import './globals.css'
 
 export const metadata = {
   title: 'Mastercard Hackathon - Career Tracking Platform',
-  description: 'A comprehensive platform for tracking user career progress with admin oversight and AI-powered guidance',
+  description: 'A comprehensive platform for tracking user career progress with admin oversight',
 }
 
 export default function RootLayout({ children }) {

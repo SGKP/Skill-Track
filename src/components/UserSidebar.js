@@ -2,7 +2,7 @@ export default function UserSidebar({ activeTab, setActiveTab, onLogout, user })
   const menuItems = [
     { id: 'profile', name: 'Profile', icon: '👤' },
     { id: 'career', name: 'Career Tracking', icon: '📈' },
-    { id: 'chatbot', name: 'AI Assistant', icon: '🤖' },
+  { id: 'chatbot', name: 'Career Assistant', icon: '🤖' },
     { id: 'chat', name: 'Admin Chat', icon: '💬' },
   ]
 

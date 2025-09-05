@@ -5,7 +5,7 @@ export default function Chatbot({ user }) {
   const [messages, setMessages] = useState([
     {
       id: 1,
-      text: `Hello ${user?.name}! I'm your AI Career Assistant. I can help you with career guidance, skill development, and role transitions. What would you like to know?`,
+  text: `Hello ${user?.name}! I'm your Career Assistant. I can help you with career guidance, skill development, and role transitions. What would you like to know?`,
       sender: 'bot',
       timestamp: new Date().toISOString()
     }
@@ -96,7 +96,7 @@ export default function Chatbot({ user }) {
             <span className="text-white text-sm">🤖</span>
           </div>
           <div>
-            <h3 className="font-semibold text-gray-900">AI Career Assistant</h3>
+            <h3 className="font-semibold text-gray-900">Career Assistant</h3>
             <p className="text-sm text-gray-600">Ask me anything about your career!</p>
           </div>
         </div>
