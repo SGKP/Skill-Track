@@ -5,14 +5,18 @@ export async function POST(request) {
   try {
     const { to, subject, text, html } = await request.json()
 
-    // Create nodemailer transporter
-    const transporter = nodemailer.createTransporter({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: process.env.SMTP_PORT || 587,
-      secure: false,
+    // Create nodemailer transporter using Gmail with SSL (port 465)
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
       auth: {
         user: process.env.SMTP_USER || 'your-email@gmail.com',
         pass: process.env.SMTP_PASS || 'your-app-password'
+      },
+      tls: {
+        rejectUnauthorized: false
       }
     })
 
