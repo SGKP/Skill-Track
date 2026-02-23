@@ -1,114 +1,141 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
-import { io } from 'socket.io-client'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 export default function AdminChat() {
-  const [socket, setSocket] = useState(null)
   const [messages, setMessages] = useState([])
   const [newMessage, setNewMessage] = useState('')
-  const [activeUsers, setActiveUsers] = useState([])
+  const [chatUsers, setChatUsers] = useState([])
   const [selectedUser, setSelectedUser] = useState(null)
-  const [isTyping, setIsTyping] = useState(null)
   const [isConnected, setIsConnected] = useState(false)
   const [broadcastMode, setBroadcastMode] = useState(false)
+  const [loading, setLoading] = useState(true)
   const messagesEndRef = useRef(null)
-  const typingTimeoutRef = useRef(null)
+  const pollIntervalRef = useRef(null)
+  const lastFetchRef = useRef(null)
+
+  const getToken = () => localStorage.getItem('token')
+
+  const fetchChatUsers = useCallback(async () => {
+    try {
+      const token = getToken()
+      if (!token) return
+      const res = await fetch('/api/chat/users', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setChatUsers(data.users || [])
+      }
+    } catch (error) {
+      console.error('Fetch chat users error:', error)
+    }
+  }, [])
+
+  const fetchMessages = useCallback(async (since = null) => {
+    try {
+      const token = getToken()
+      if (!token) return
+
+      let url = '/api/chat/messages'
+      const params = new URLSearchParams()
+      if (since) params.set('since', since)
+      if (broadcastMode) params.set('broadcast', 'true')
+      else if (selectedUser) params.set('withUser', selectedUser.userId)
+      if (params.toString()) url += `?${params.toString()}`
+
+      const res = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        if (since && data.messages.length > 0) {
+          setMessages(prev => {
+            const existingIds = new Set(prev.map(m => m._id))
+            const newMsgs = data.messages.filter(m => !existingIds.has(m._id))
+            return [...prev, ...newMsgs]
+          })
+        } else if (!since) {
+          setMessages(data.messages)
+        }
+        setIsConnected(true)
+        lastFetchRef.current = new Date().toISOString()
+      }
+    } catch (error) {
+      console.error('Fetch messages error:', error)
+      setIsConnected(false)
+    } finally {
+      setLoading(false)
+    }
+  }, [selectedUser, broadcastMode])
 
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem('user'))
-    if (!user) return
+    setLoading(true)
+    lastFetchRef.current = null
+    fetchMessages()
+    fetchChatUsers()
 
-    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3000'
-    const socketInstance = io(socketUrl, {
-      transports: ['polling', 'websocket'],
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionAttempts: 5,
-      withCredentials: false
-    })
+    pollIntervalRef.current = setInterval(() => {
+      fetchMessages(lastFetchRef.current)
+      fetchChatUsers()
+    }, 3000)
 
-    socketInstance.on('connect', () => {
-      setIsConnected(true)
-      socketInstance.emit('join', {
-        userId: user.id || user._id || user.email,
-        role: 'admin',
-        userName: user.name || 'Admin'
-      })
-    })
-
-    socketInstance.on('connect_error', () => setIsConnected(false))
-    socketInstance.on('disconnect', () => setIsConnected(false))
-    socketInstance.on('active_users_list', (usersList) => setActiveUsers(usersList))
-
-    socketInstance.on('user_online', ({ userId, userName }) => {
-      setActiveUsers(prev => {
-        if (prev.find(u => u.userId === userId)) return prev
-        return [...prev, { userId, userName, online: true }]
-      })
-    })
-
-    socketInstance.on('user_offline', ({ userId }) => {
-      setActiveUsers(prev => prev.filter(u => u.userId !== userId))
-    })
-
-    socketInstance.on('receive_message', (messageData) => {
-      setMessages(prev => [...prev, messageData])
-      if (messageData.fromRole === 'user') {
-        setActiveUsers(prev => {
-          if (prev.find(u => u.userId === messageData.from)) return prev
-          return [...prev, { userId: messageData.from, userName: messageData.fromName, online: true }]
-        })
-      }
-    })
-
-    socketInstance.on('message_sent', () => {})
-
-    socketInstance.on('user_typing', ({ userId, userName, isTyping: typing }) => {
-      if (selectedUser && selectedUser.userId === userId) {
-        setIsTyping(typing ? userName : null)
-      }
-    })
-
-    setSocket(socketInstance)
-    return () => { if (socketInstance) socketInstance.disconnect() }
-  }, [])
+    return () => {
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
+    }
+  }, [fetchMessages, fetchChatUsers])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const handleTyping = () => {
-    if (!socket || !isConnected || !selectedUser) return
-    socket.emit('typing', { to: selectedUser.userId, isTyping: true })
-    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
-    typingTimeoutRef.current = setTimeout(() => {
-      socket.emit('typing', { to: selectedUser.userId, isTyping: false })
-    }, 2000)
-  }
-
-  const sendMessage = () => {
-    if (!newMessage.trim() || !socket || !isConnected) return
+  const sendMessage = async () => {
+    if (!newMessage.trim()) return
+    const token = getToken()
     const user = JSON.parse(localStorage.getItem('user'))
+    if (!token || !user) return
+
+    const msgText = newMessage
+    setNewMessage('')
 
     if (broadcastMode) {
-      const broadcastData = {
-        id: Date.now(), from: user.id || user._id, fromName: user.name,
-        message: newMessage, fromRole: 'admin', timestamp: new Date().toISOString(), isBroadcast: true
+      const tempMessage = {
+        _id: 'temp-' + Date.now(), from: user.id || user._id, fromName: user.name,
+        message: msgText, fromRole: 'admin', isBroadcast: true,
+        createdAt: new Date().toISOString(), sending: true
       }
-      socket.emit('admin_broadcast', { message: newMessage })
-      setMessages(prev => [...prev, broadcastData])
+      setMessages(prev => [...prev, tempMessage])
+      try {
+        const res = await fetch('/api/chat/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ message: msgText, isBroadcast: true })
+        })
+        if (res.ok) {
+          const data = await res.json()
+          setMessages(prev => prev.map(m => m._id === tempMessage._id ? { ...data.message, sending: false } : m))
+        }
+      } catch (error) { console.error('Broadcast error:', error) }
     } else if (selectedUser) {
-      const messageData = {
-        id: Date.now(), from: user.id || user._id, fromName: user.name,
-        to: selectedUser.userId, message: newMessage, fromRole: 'admin',
-        toRole: 'user', timestamp: new Date().toISOString()
+      const tempMessage = {
+        _id: 'temp-' + Date.now(), from: user.id || user._id, fromName: user.name,
+        to: selectedUser.userId, message: msgText, fromRole: 'admin',
+        toRole: 'user', createdAt: new Date().toISOString(), sending: true
       }
-      socket.emit('send_message', { to: selectedUser.userId, message: newMessage, fromRole: 'admin', toRole: 'user' })
-      setMessages(prev => [...prev, messageData])
-      socket.emit('typing', { to: selectedUser.userId, isTyping: false })
+      setMessages(prev => [...prev, tempMessage])
+      try {
+        const res = await fetch('/api/chat/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ to: selectedUser.userId, message: msgText })
+        })
+        if (res.ok) {
+          const data = await res.json()
+          setMessages(prev => prev.map(m => m._id === tempMessage._id ? { ...data.message, sending: false } : m))
+        }
+      } catch (error) { console.error('Send error:', error) }
     }
-    setNewMessage('')
   }
 
   const filteredMessages = broadcastMode
@@ -117,7 +144,10 @@ export default function AdminChat() {
       ? messages.filter(m => (m.from === selectedUser.userId || m.to === selectedUser.userId) && !m.isBroadcast)
       : []
 
-  const unreadCount = (userId) => messages.filter(m => m.from === userId && !m.read).length
+  const unreadCount = (userId) => {
+    const u = chatUsers.find(cu => cu.userId === userId)
+    return u?.unreadCount || 0
+  }
 
   return (
     <div className="flex h-[calc(100vh-200px)] min-h-[500px] rounded-2xl overflow-hidden border border-white/[0.06]" style={{ background: 'linear-gradient(145deg, #0c0c14 0%, #08080e 100%)' }}>
@@ -149,19 +179,19 @@ export default function AdminChat() {
 
         {/* User List */}
         <div className="flex-1 overflow-y-auto p-2">
-          {activeUsers.length === 0 ? (
+          {chatUsers.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center px-4">
               <div className="w-12 h-12 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center mb-3">
                 <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5" className="text-white/15">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/>
                 </svg>
               </div>
-              <p className="text-xs text-white/20">No users online</p>
-              <p className="text-[10px] text-white/10 mt-1">Users will appear when they connect</p>
+              <p className="text-xs text-white/20">No chat users yet</p>
+              <p className="text-[10px] text-white/10 mt-1">Users will appear when they message</p>
             </div>
           ) : (
             <div className="space-y-0.5">
-              {activeUsers.map((user, index) => {
+              {chatUsers.map((user, index) => {
                 const isSelected = selectedUser?.userId === user.userId && !broadcastMode
                 const unread = unreadCount(user.userId)
                 return (
@@ -201,7 +231,7 @@ export default function AdminChat() {
 
         {/* Online count */}
         <div className="px-4 py-3 border-t border-white/[0.04]">
-          <p className="text-[10px] text-white/15">{activeUsers.length} user(s) online</p>
+          <p className="text-[10px] text-white/15">{chatUsers.length} user(s) in chat</p>
         </div>
       </div>
 
@@ -231,7 +261,7 @@ export default function AdminChat() {
               </div>
               <div>
                 <p className="text-sm font-medium text-white/80">{selectedUser.userName || 'User'}</p>
-                <p className="text-[10px] text-white/25">{isTyping ? `${isTyping} is typing...` : 'Online'}</p>
+                <p className="text-[10px] text-white/25">Online</p>
               </div>
             </>
           ) : (
@@ -261,7 +291,7 @@ export default function AdminChat() {
               {filteredMessages.map((message) => {
                 const isAdmin = message.fromRole === 'admin'
                 return (
-                  <div key={message.id} className={`flex ${isAdmin ? 'justify-end' : 'justify-start'}`}>
+                  <div key={message._id} className={`flex ${isAdmin ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[70%] px-4 py-2.5 rounded-2xl text-sm ${
                       message.isBroadcast
                         ? 'bg-purple-500/15 text-purple-200 border border-purple-500/15 rounded-br-md'
@@ -274,23 +304,12 @@ export default function AdminChat() {
                       )}
                       <p className="leading-relaxed">{message.message}</p>
                       <p className="text-[10px] mt-1.5 opacity-40">
-                        {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </p>
                     </div>
                   </div>
                 )
               })}
-              {isTyping && (
-                <div className="flex justify-start">
-                  <div className="bg-white/[0.04] border border-white/[0.06] px-4 py-2.5 rounded-2xl rounded-bl-md">
-                    <div className="flex items-center gap-1">
-                      <div className="w-1.5 h-1.5 rounded-full bg-white/30 animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <div className="w-1.5 h-1.5 rounded-full bg-white/30 animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <div className="w-1.5 h-1.5 rounded-full bg-white/30 animate-bounce" style={{ animationDelay: '300ms' }} />
-                    </div>
-                  </div>
-                </div>
-              )}
               <div ref={messagesEndRef} />
             </div>
           )}
@@ -305,7 +324,6 @@ export default function AdminChat() {
               onChange={(e) => setNewMessage(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') sendMessage()
-                else handleTyping()
               }}
               placeholder={
                 broadcastMode ? "Type broadcast message..."
