@@ -61,8 +61,6 @@ export default function UserChat({ user }) {
   }, [messages])
 
   const sendMessage = async () => {
-      socket.emit('typing', { to: 'admin', isTyping: false })
-  const sendMessage = async () => {
     if (!newMessage.trim()) return
 
     const token = getToken()
