@@ -1,0 +1,13 @@
+{
+  "functions": {
+    "src/pages/api/socket.js": {
+      "maxDuration": 60
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/socket.io/(.*)",
+      "destination": "/api/socket"
+    }
+  ]
+}
